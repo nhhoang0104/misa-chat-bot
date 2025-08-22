@@ -40,3 +40,4 @@ duckduckgo_search
 geopy
 streamlit
 python-dotenv
+langchain_tavily
