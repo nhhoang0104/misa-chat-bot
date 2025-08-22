@@ -43,3 +43,4 @@ streamlit_extras
 python-dotenv
 PyPDF2
 docx
+langchain_tavily
