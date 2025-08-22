@@ -38,3 +38,4 @@ uuid6>=2023.5.2  # nếu dùng uuid5() khác với stdlib uuid
 Levenshtein>=0.24.0  # cho fuzzy string matching
 duckduckgo_search
 geopy
+streamlit
