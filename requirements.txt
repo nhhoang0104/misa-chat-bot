@@ -44,3 +44,4 @@ python-dotenv
 PyPDF2
 docx
 langchain_tavily
+mysql-connector-python
