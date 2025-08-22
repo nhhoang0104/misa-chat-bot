@@ -2,6 +2,8 @@ import streamlit as st
 from datetime import datetime, timedelta
 import pytz
 
+from graph import graph_builder
+
 st.set_page_config(layout="wide", page_title="Agent Chat", page_icon="🤖")
 
 import time
@@ -87,36 +89,35 @@ with st.expander("Config"):
 
 # ========== Process Events ==========
 async def process_events(inputs: dict) -> AsyncGenerator[str, None]:
-    pass
-    # async for event in graph.astream_events(inputs, config=st.session_state.config, version="v1"):
-    #     kind = event["event"]
-    #
-    #     if kind == "on_chat_model_stream":
-    #         content = event["data"]["chunk"].content
-    #         if content:
-    #             yield content
-    #
-    #     elif kind == "on_tool_start":
-    #         tool_name = event["name"]
-    #         tool_input = event["data"].get("input", {})
-    #         output = f"\n\n➡️ Tool `{tool_name}` called\n\n"
-    #
-    #         if tool_input:  # Only add content if input is not empty
-    #             # Format tool input consistently
-    #             if isinstance(tool_input, str):
-    #                 formatted_input = tool_input
-    #             else:
-    #                 try:
-    #                     formatted_input = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
-    #                 except:
-    #                     formatted_input = str(tool_input)
-    #
-    #             output += f" with:\n```\n{formatted_input}\n```"
-    #
-    #         yield output
-    #
-    #     elif kind == "on_tool_end":
-    #         pass
+    async for event in graph_builder.astream_events(inputs, config=st.session_state.config, version="v1"):
+        kind = event["event"]
+
+        if kind == "on_chat_model_stream":
+            content = event["data"]["chunk"].content
+            if content:
+                yield content
+
+        elif kind == "on_tool_start":
+            tool_name = event["name"]
+            tool_input = event["data"].get("input", {})
+            output = f"\n\n➡️ Tool `{tool_name}` called\n\n"
+
+            if tool_input:  # Only add content if input is not empty
+                # Format tool input consistently
+                if isinstance(tool_input, str):
+                    formatted_input = tool_input
+                else:
+                    try:
+                        formatted_input = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
+                    except:
+                        formatted_input = str(tool_input)
+
+                output += f" with:\n```\n{formatted_input}\n```"
+
+            yield output
+
+        elif kind == "on_tool_end":
+            pass
 
 
 # ========== Async to Sync Generator ==========

@@ -39,3 +39,4 @@ Levenshtein>=0.24.0  # cho fuzzy string matching
 duckduckgo_search
 geopy
 streamlit
+python-dotenv

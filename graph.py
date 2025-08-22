@@ -1,0 +1,76 @@
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import ToolMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+from langchain_google_genai import ChatGoogleGenerativeAI
+from agent_state import AgentState
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
+
+# Get values
+api_key = os.getenv("GEMINI_API_KEY")
+graph = StateGraph(AgentState)
+
+
+model = ChatGoogleGenerativeAI(
+    model= "gemini-2.5-flash",    # Model ngôn ngữ lớn"
+    temperature=0.5,              # Mức độ sáng tạo của model, từ 0 tới 1.
+    max_tokens=None,              # Giới hạn token của Input, Output. Thường nên để tối đa 32K.
+    timeout=None,
+    max_retries=3,
+    google_api_key=api_key        #API key đã lấy ở trên
+)
+
+tools = []
+tools_by_name = {tool.name: tool for tool in tools}
+
+agent = model.bind_tools(tools)
+
+# Define our tool node
+def call_tools (state: AgentState):
+    outputs = []
+
+    for tool_call in state["messages"][-1].tool_calls:
+        if tool_call["name"] not in tools_by_name:
+            continue
+
+        tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
+
+        outputs.append(
+            ToolMessage(
+                content = tool_result,
+                name = tool_call["name"],
+                tool_call_id = tool_call["id"],
+            )
+        )
+
+    return {"messages": outputs}
+
+# Define call_model
+def call_model(
+    state: AgentState,
+    config: RunnableConfig,
+):
+    # Invoke the model with the system prompt and the messages
+    response = agent.invoke(state["messages"], config)
+
+    # We return a list, because this will get added to the existing messages state using the add_messages reducer
+    return {"messages": [response]}
+
+# Define the conditional edge that determines whether to continue or not
+def should_continue(state: AgentState):
+    messages = state["messages"]
+
+    # If the last message is not a tool call, then we finish
+    if not messages[-1].tool_calls:
+        return "end"
+
+    # default to continue
+    return "continue"
+
+
+memory = MemorySaver()
+graph_builder = graph.compile(checkpointer=memory)
