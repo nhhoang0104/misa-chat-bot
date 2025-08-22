@@ -9,7 +9,10 @@ from langgraph.graph import StateGraph, END
 
 from agent_state import AgentState
 from system_prompt import system_prompt
+from tools.book_search import search_by_topic
+from tools.check_cv import check_cv
 from tools.extract_file import extract_file
+from tools.summary import summary
 
 # Load .env file
 load_dotenv()
@@ -27,7 +30,7 @@ model = ChatGoogleGenerativeAI(
     google_api_key=api_key  # API key đã lấy ở trên
 )
 
-tools = [extract_file]
+tools = [extract_file, search_by_topic, summary, check_cv]
 tools_by_name = {tool.name: tool for tool in tools}
 
 agent = model.bind_tools(tools)
@@ -38,24 +41,8 @@ def call_tools(state: AgentState):
     outputs = []
 
     for tool_call in state["messages"][-1].tool_calls:
-        tool_name = tool_call["name"]
-
-        if tool_name not in tools_by_name:
+        if tool_call["name"] not in tools_by_name:
             continue
-
-        args = tool_call["args"]
-
-        # Nếu tool cần file -> inject file từ session
-        if tool_name == "extract_file":
-            # lấy file cuối cùng user upload từ session
-            file_dict = None
-            # for m in reversed(st.session_state.messages):
-            #     if "file" in m:
-            #         file_dict = m["file"]
-            #         file_dict["bytes"] = open(m["file"]["name"], "rb").read()  # HOẶC cache bytes lại
-            #         break
-            if file_dict:
-                args["file"] = file_dict
 
         tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
 

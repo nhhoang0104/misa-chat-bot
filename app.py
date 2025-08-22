@@ -12,6 +12,9 @@ import json
 from uuid import uuid4
 from typing import AsyncGenerator
 
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 def get_current_time() -> str:
     now = datetime.now(pytz.timezone("Asia/Ho_Chi_Minh"))
@@ -194,6 +197,7 @@ if prompt:  # chỉ gửi khi có text
 
     file_bytes = None
     ext = None
+    file_info = ""
 
     if uploaded_file is not None:
         file_bytes = uploaded_file.read()
@@ -204,6 +208,12 @@ if prompt:  # chỉ gửi khi có text
             "bytes": file_bytes,
             "type": uploaded_file.type
         }
+
+        file_info = f"\n\n[File đính kèm: {uploaded_file.name}, loại {uploaded_file.type}, kích thước {len(file_bytes)} bytes]"
+
+        filepath = os.path.join(UPLOAD_FOLDER, uploaded_file.name)
+        with open(filepath, "wb") as f:
+            f.write(file_bytes)
 
     # Lưu tin nhắn user
     st.session_state.messages.append(user_message)
@@ -230,11 +240,16 @@ if prompt:  # chỉ gửi khi có text
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 
+    # Chuẩn bị input cho graph
+    inputs = {
+        "messages": [("user", prompt + " " + file_info)],
+    }
+
     # Assistant trả lời
     with st.chat_message("assistant"):
         start_time = time.time()
         response = st.write_stream(
-            to_sync_generator(process_events, {"messages": [("user", prompt)]})
+            to_sync_generator(process_events, inputs)
         )
         end_time = time.time() - start_time
 
