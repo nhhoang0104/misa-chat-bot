@@ -71,6 +71,12 @@ def should_continue(state: AgentState):
     # default to continue
     return "continue"
 
+graph.add_node("ask_question", call_model)
+graph.add_node("call_tools", call_tools)
+
+graph.set_entry_point("ask_question")
+graph.add_conditional_edges("ask_question", should_continue, { "continue": "call_tools", "end": END })
+graph.add_edge("call_tools", "ask_question")
 
 memory = MemorySaver()
 graph_builder = graph.compile(checkpointer=memory)
