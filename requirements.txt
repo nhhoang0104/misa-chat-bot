@@ -41,3 +41,4 @@ geopy
 streamlit
 python-dotenv
 langchain_tavily
+mysql-connector-python
