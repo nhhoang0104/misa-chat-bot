@@ -1,16 +1,17 @@
-import streamlit as st
+import os
+import time
 from datetime import datetime, timedelta
-import pytz
 
-from graph import graph_builder
+import pytz
+import streamlit as st
 
 st.set_page_config(layout="wide", page_title="Agent Chat", page_icon="🤖")
 
-import time
 import asyncio
 import json
 from uuid import uuid4
 from typing import AsyncGenerator
+
 
 def get_current_time() -> str:
     now = datetime.now(pytz.timezone("Asia/Ho_Chi_Minh"))
@@ -21,6 +22,7 @@ def get_current_time() -> str:
 
     current_time = f"{weekday}, ngày {now.day:02d}/{now.month:02d}/{now.year}"
     return current_time
+
 
 def get_this_week_time() -> dict:
     now = datetime.now(pytz.timezone("Asia/Ho_Chi_Minh"))
@@ -35,9 +37,10 @@ def get_this_week_time() -> dict:
         "sunday": sunday
     }
 
+
 # ========== Page Config ==========
 st.title("Chat with Agent")
-st.button("Clear message", on_click=lambda: st.session_state.clear())
+st.button("Clear message", on_click=lambda: st.session_state.clear(), key="clear_message_btn")
 
 # ========== Init Session State ==========
 if "session_id" not in st.session_state:
@@ -78,13 +81,15 @@ with st.expander("Config"):
     config["gender"] = col2.text_input("Gender", value=config["gender"])
     config["x_birthdate"] = col3.text_input("Date of Birth", value=config["x_birthdate"])
 
-    if st.button("Submit Config"):
+    if st.button("Submit Config", key="submit_config_btn"):
         session_id = str(uuid4())
         st.session_state.session_id = session_id
 
         st.session_state.config = {
             "configurable": config
         }
+
+from graph import graph_builder
 
 
 # ========== Process Events ==========
@@ -143,17 +148,94 @@ for message in st.session_state.messages:
         else:
             st.markdown(message["content"], unsafe_allow_html=True)
 
-# ========== Chat Input ==========
-if prompt := st.chat_input("What is up?", max_chars=1000):
-    inputs = {"messages": [("user", prompt)]}
+## ========== Chat Input ==========
+# if prompt := st.chat_input("What is up?", max_chars=1000):
+#     inputs = {"messages": [("user", prompt)]}
+#
+#     st.session_state.messages.append({"role": "user", "content": prompt})
+#     with st.chat_message("user"):
+#         st.markdown(prompt)
+#
+#     with st.chat_message("assistant"):
+#         start_time = time.time()
+#         response = st.write_stream(to_sync_generator(process_events, inputs))
+#         end_time = time.time() - start_time
+#
+#         response_id = uuid4().hex
+#         st.write(f"⏱️ **Processed in**: {round(end_time, 2)}s")
+#         st.session_state.messages.append({
+#             "role": "assistant",
+#             "content": response,
+#             "id": response_id,
+#             "stars": 0
+#         })
 
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# ========== Chat Input + File Upload ==========
+with st.container():
+    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
+
+    col1, col2 = st.columns([6, 2])
+
+    with col1:
+        prompt = st.chat_input("Nhập tin nhắn...", max_chars=1000)
+
+    with col2:
+        uploaded_file = st.file_uploader(
+            "📎",
+            type=["png", "jpg", "jpeg", "pdf"],
+            key="chat_upload",
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ========== Handle Message ==========
+if prompt:  # chỉ gửi khi có text
+    user_message = {"role": "user", "content": prompt}
+
+    file_bytes = None
+    ext = None
+
+    if uploaded_file is not None:
+        file_bytes = uploaded_file.read()
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+        user_message["file"] = {
+            "name": uploaded_file.name,
+            "bytes": file_bytes,
+            "type": uploaded_file.type
+        }
+
+    # Lưu tin nhắn user
+    st.session_state.messages.append(user_message)
+
+    # Hiển thị tin nhắn user
     with st.chat_message("user"):
         st.markdown(prompt)
 
+        if uploaded_file is not None:
+            if ext in [".png", ".jpg", ".jpeg"]:
+                st.image(file_bytes, caption=uploaded_file.name, use_container_width=True)
+            elif ext == ".pdf":
+                st.download_button(
+                    label=f"📄 Xem {uploaded_file.name}",
+                    data=file_bytes,
+                    file_name=uploaded_file.name,
+                    mime="application/pdf"
+                )
+            elif ext == ".docx":
+                st.download_button(
+                    label=f"📄 Tải {uploaded_file.name}",
+                    data=file_bytes,
+                    file_name=uploaded_file.name,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+
+    # Assistant trả lời
     with st.chat_message("assistant"):
         start_time = time.time()
-        response = st.write_stream(to_sync_generator(process_events, inputs))
+        response = st.write_stream(
+            to_sync_generator(process_events, {"messages": [("user", prompt)]})
+        )
         end_time = time.time() - start_time
 
         response_id = uuid4().hex
