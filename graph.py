@@ -12,6 +12,7 @@ from system_prompt import system_prompt
 from tools.book_search import search_by_topic
 from tools.check_cv import check_cv
 from tools.extract_file import extract_file
+from tools.question_generator import question_generator_tool
 from tools.summary import summary
 
 # Load .env file
@@ -30,7 +31,7 @@ model = ChatGoogleGenerativeAI(
     google_api_key=api_key  # API key đã lấy ở trên
 )
 
-tools = [extract_file, search_by_topic, summary, check_cv]
+tools = [extract_file, search_by_topic, summary, check_cv, question_generator_tool]
 tools_by_name = {tool.name: tool for tool in tools}
 
 agent = model.bind_tools(tools)
